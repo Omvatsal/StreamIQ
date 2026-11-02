@@ -27,22 +27,34 @@ class ABREnvironment(gym.Env):
         buffer_capacity_seconds: float = 60.0,
         throughput_history_length: int = 5,
         reward_config: Optional[RewardConfig] = None,
+        include_previous_bitrate: bool = True,
+        network_packet_loss_retries: bool = False,
     ):
         super().__init__()
-        if throughput_history_length <= 0:
-            raise ValueError("throughput_history_length must be positive")
+        if throughput_history_length < 0:
+            raise ValueError("throughput_history_length cannot be negative")
         self.trace = trace
         self.video = video or VideoModel()
         self.buffer_capacity_seconds = buffer_capacity_seconds
         self.history_length = throughput_history_length
+        self.include_previous_bitrate = include_previous_bitrate
         self.reward_config = reward_config or RewardConfig()
         self.action_space = spaces.Discrete(5)
+        state_size = 1 + throughput_history_length + int(include_previous_bitrate) + 2
         self.observation_space = spaces.Box(
-            low=np.array([0.0] + [0.0] * throughput_history_length + [0.0, 0.0, 0.0], dtype=np.float32),
-            high=np.array([buffer_capacity_seconds] + [np.finfo(np.float32).max] * throughput_history_length + [4.0, np.finfo(np.float32).max, np.inf], dtype=np.float32),
+            low=np.zeros(state_size, dtype=np.float32),
+            high=np.array(
+                [buffer_capacity_seconds]
+                + [np.finfo(np.float32).max] * throughput_history_length
+                + ([max(self.video.bitrates_mbps)] if include_previous_bitrate else [])
+                + [np.finfo(np.float32).max, np.inf],
+                dtype=np.float32,
+            ),
             dtype=np.float32,
         )
-        self.network = TraceNetworkAdapter(trace)
+        self.network = TraceNetworkAdapter(
+            trace, packet_loss_retries=network_packet_loss_retries
+        )
         self.metrics = EpisodeMetrics()
         self.buffer = BufferState(capacity_seconds=buffer_capacity_seconds)
         self._time = 0.0
@@ -56,7 +68,11 @@ class ABREnvironment(gym.Env):
             [
                 self.buffer.occupancy_seconds,
                 *self._throughputs,
-                0.0 if self._previous_quality is None else self.video.bitrates_mbps[self._previous_quality],
+                *(
+                    [0.0 if self._previous_quality is None
+                     else self.video.bitrates_mbps[self._previous_quality]]
+                    if self.include_previous_bitrate else []
+                ),
                 self._previous_download,
                 float(self.video.segment_count - self._segment_index),
             ],
@@ -65,7 +81,9 @@ class ABREnvironment(gym.Env):
 
     def reset(self, *, seed: Optional[int] = None, options=None):
         super().reset(seed=seed)
-        self.network = TraceNetworkAdapter(self.trace)
+        self.network = TraceNetworkAdapter(
+            self.trace, packet_loss_retries=self.network.packet_loss_retries
+        )
         self.metrics = EpisodeMetrics()
         self.buffer = BufferState(capacity_seconds=self.buffer_capacity_seconds)
         self._time = 0.0
@@ -87,10 +105,25 @@ class ABREnvironment(gym.Env):
         rebuffer = self.buffer.download_and_play(
             result.duration_seconds, self.video.segment_duration_seconds
         )
-        reward = calculate_reward(quality, rebuffer, self._previous_quality, self.reward_config)
+        previous_bitrate = (
+            None if self._previous_quality is None
+            else self.video.bitrates_mbps[self._previous_quality]
+        )
+        reward = calculate_reward(
+            quality,
+            rebuffer,
+            previous_bitrate,
+            self.video.bitrates_mbps[quality],
+            self.reward_config,
+        )
         self._time = result.end_time_seconds
         self._previous_download = result.duration_seconds
-        self._throughputs = (self._throughputs + [result.throughput_mbps])[-self.history_length:]
+        if self.history_length:
+            self._throughputs = (
+                self._throughputs + [result.throughput_mbps]
+            )[-self.history_length:]
+        else:
+            self._throughputs = []
         self._segment_index += 1
         self._previous_quality = quality
         self.metrics.add(

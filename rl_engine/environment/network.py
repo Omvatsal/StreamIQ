@@ -18,10 +18,16 @@ class DownloadResult:
 class TraceNetworkAdapter:
     """Consume link capacity over time without depending on Mininet."""
 
-    def __init__(self, trace: NetworkTrace, packet_loss_retries: bool = False):
+    def __init__(
+        self,
+        trace: NetworkTrace,
+        packet_loss_retries: bool = False,
+        include_delay: bool = True,
+    ):
         self.trace = trace
         self._timestamps = [condition.timestamp_seconds for condition in trace.conditions]
         self.packet_loss_retries = packet_loss_retries
+        self.include_delay = include_delay
 
     def condition_at(self, time_seconds: float) -> NetworkCondition:
         index = max(0, bisect_right(self._timestamps, time_seconds) - 1)
@@ -61,6 +67,10 @@ class TraceNetworkAdapter:
                 remaining_bits -= bits_available
                 current = boundary
         duration = current - initial
+        if self.include_delay:
+            # Delay is modeled as one-way propagation latency per segment.
+            duration += self.condition_at(initial).delay_ms / 1000.0
+            current += self.condition_at(initial).delay_ms / 1000.0
         return DownloadResult(
             initial,
             current,

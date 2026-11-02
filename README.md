@@ -114,3 +114,61 @@ reward switching magnitude, termination, reproducibility, CSV export, and
 sudden-drop behavior. The full test suite passed locally with 14 tests.
 Mininet integration remains outside this environment because Mininet is not
 installed here; the ABR environment itself is independent of that limitation.
+
+## DQN agent
+
+The PyTorch DQN implementation is under
+[`rl_engine/agents/`](/home/om_vatsal/coding/projects/StreamIQ/rl_engine/agents),
+with training utilities in
+[`rl_engine/training/`](/home/om_vatsal/coding/projects/StreamIQ/rl_engine/training)
+and evaluation/baselines in
+[`rl_engine/evaluation/`](/home/om_vatsal/coding/projects/StreamIQ/rl_engine/evaluation).
+It uses the ABR observation directly, stores transitions in replay, computes
+target-network Bellman targets, clips gradients, and checkpoints optimizer,
+target-network, epsilon, and step state.
+
+Run a configurable training/evaluation job:
+
+```bash
+python -m rl_engine.training.run \
+  --episodes 100 --duration 60 --seed 42 \
+  --output-dir experiments/results/dqn
+```
+
+The runner trains on deterministic stable, random, oscillating, sudden-drop,
+recovery, and congestion traces, then evaluates the DQN and fixed-bitrate,
+throughput-based, and buffer-based policies on newly constructed traces with
+the same profile/seed inputs. Outputs include training CSV/plot, checkpoints,
+evaluation text, and a QoE comparison plot. Use `--resume path/to/checkpoint.pt`
+to restore a checkpoint.
+
+Evaluation reports average bitrate, total rebuffering, switch count, switching
+magnitude, and accumulated environment reward as QoE. The DQN and baselines
+receive the same saved trace conditions; no future network condition is added
+to the observation. PyTorch is declared in
+[`backend/requirements.txt`](/home/om_vatsal/coding/projects/StreamIQ/backend/requirements.txt).
+
+## Research validation
+
+Milestone 6 adds disjoint dataset generation and controlled validation tooling:
+
+```bash
+python -m experiments.research_validation \
+  --episodes 100 \
+  --seeds 11 12 13 \
+  --output experiments/results
+```
+
+The runner retrains each ablation from fresh initialization, evaluates DQN and
+all baselines on identical unseen traces, and writes outputs under
+`experiments/results/`. Evaluation QoE is calculated independently from the
+environment reward using average bitrate, rebuffering, and total bitrate
+variation.
+
+The environment corrections include configured delay in segment download time
+and switching penalties based on absolute bitrate changes in Mbps. Packet loss
+continues to use an explicit effective-capacity approximation. State ablations
+can remove throughput history or previous bitrate without duplicating the
+environment. The available one-seed, 20-episode validation run is not enough
+to claim convergence or that DQN reduces oscillations while maintaining QoE;
+the research report explicitly treats those results as limited evidence.

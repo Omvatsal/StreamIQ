@@ -13,13 +13,14 @@ class RewardConfig:
 def calculate_reward(
     quality_index: int,
     rebuffer_seconds: float,
-    previous_quality_index: int | None,
+    previous_bitrate_mbps: float | None,
+    current_bitrate_mbps: float,
     config: RewardConfig,
 ) -> float:
     switch = (
         0.0
-        if previous_quality_index is None
-        else abs(quality_index - previous_quality_index)
+        if previous_bitrate_mbps is None
+        else abs(current_bitrate_mbps - previous_bitrate_mbps)
     )
     return (
         config.quality_weight * quality_index

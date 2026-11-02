@@ -1,6 +1,7 @@
 import csv
 
 import numpy as np
+import pytest
 
 from network_lab.traces.generator import generate_trace
 from network_lab.traces.models import NetworkCondition, NetworkTrace, TraceConfig
@@ -29,13 +30,30 @@ def test_download_uses_trace_bandwidth():
         NetworkTrace("x", "stable", 1, 10, 1, (NetworkCondition(0, 2),))
     )
     result = network.download(1, 0)
-    assert result.duration_seconds == 4
-    assert result.throughput_mbps == 2
+    assert result.duration_seconds == pytest.approx(4.005)
+    assert result.throughput_mbps == pytest.approx(2, rel=0.01)
 
 
 def test_reward_accounts_for_switch_magnitude():
-    reward = calculate_reward(4, 0, 0, RewardConfig())
-    assert reward == 4 - 2
+    reward = calculate_reward(4, 0, 0.3, 5.0, RewardConfig())
+    assert reward == pytest.approx(4 - 2.35)
+
+
+def test_observation_options_do_not_leak_future_state():
+    environment = ABREnvironment(
+        trace(), throughput_history_length=0, include_previous_bitrate=False
+    )
+    observation, _ = environment.reset()
+    assert observation.shape == (3,)
+    assert environment.observation_space.contains(observation)
+
+
+def test_delay_is_included_once_per_segment():
+    low_delay = NetworkTrace("low", "stable", 1, 10, 1, (NetworkCondition(0, 2, 0),))
+    high_delay = NetworkTrace("high", "stable", 1, 10, 1, (NetworkCondition(0, 2, 100),))
+    low = TraceNetworkAdapter(low_delay).download(1, 0)
+    high = TraceNetworkAdapter(high_delay).download(1, 0)
+    assert high.duration_seconds - low.duration_seconds == pytest.approx(0.1)
 
 
 def test_environment_reset_step_and_termination():

@@ -17,3 +17,6 @@ class TrainingConfig:
     gradient_clip: float = 1.0
     seed: int = 42
     checkpoint_every: int = 25
+    validation_every: int = 10
+    validation_rebuffer_weight: float = 4.0
+    validation_switch_weight: float = 0.5
