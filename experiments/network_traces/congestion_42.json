@@ -1,0 +1,45 @@
+{
+  "trace_id": "congestion_42",
+  "profile": "congestion",
+  "seed": 42,
+  "duration_seconds": 6,
+  "interval_seconds": 1,
+  "conditions": [
+    {
+      "timestamp_seconds": 0,
+      "bandwidth_mbps": 3.639426798457883,
+      "delay_ms": 35.250107552226666,
+      "packet_loss_percent": 4.550058636738239
+    },
+    {
+      "timestamp_seconds": 1,
+      "bandwidth_mbps": 3.2232107381488224,
+      "delay_ms": 42.364712141640126,
+      "packet_loss_percent": 5.353398974845822
+    },
+    {
+      "timestamp_seconds": 2,
+      "bandwidth_mbps": 3.8921795677048454,
+      "delay_ms": 35.869388326294164,
+      "packet_loss_percent": 4.843843639370541
+    },
+    {
+      "timestamp_seconds": 3,
+      "bandwidth_mbps": 3.0297972194380702,
+      "delay_ms": 37.18637974803603,
+      "packet_loss_percent": 5.0107105762067246
+    },
+    {
+      "timestamp_seconds": 4,
+      "bandwidth_mbps": 3.0265359696838634,
+      "delay_ms": 36.98837650686649,
+      "packet_loss_percent": 5.299768875559046
+    },
+    {
+      "timestamp_seconds": 5,
+      "bandwidth_mbps": 3.5449414806032165,
+      "delay_ms": 37.204406220406966,
+      "packet_loss_percent": 5.178531367751818
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "trace_id": "oscillating_42",
+  "profile": "oscillating",
+  "seed": 42,
+  "duration_seconds": 6,
+  "interval_seconds": 1,
+  "conditions": [
+    {
+      "timestamp_seconds": 0,
+      "bandwidth_mbps": 5.525096823722419,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 1,
+      "bandwidth_mbps": 9.311616252970055,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 2,
+      "bandwidth_mbps": 9.356619594336415,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 3,
+      "bandwidth_mbps": 5.450177932866789,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 4,
+      "bandwidth_mbps": 1.6454505015195495,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 5,
+      "bandwidth_mbps": 1.6346915907061506,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    }
+  ]
+}

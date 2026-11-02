@@ -1,0 +1,45 @@
+{
+  "trace_id": "random_42",
+  "profile": "random",
+  "seed": 42,
+  "duration_seconds": 6,
+  "interval_seconds": 1,
+  "conditions": [
+    {
+      "timestamp_seconds": 0,
+      "bandwidth_mbps": 6.754841186120954,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 1,
+      "bandwidth_mbps": 7.673954497838496,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 2,
+      "bandwidth_mbps": 7.673954497838496,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 3,
+      "bandwidth_mbps": 3.008896643339405,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 4,
+      "bandwidth_mbps": 3.008896643339405,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 5,
+      "bandwidth_mbps": 3.008896643339405,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    }
+  ]
+}

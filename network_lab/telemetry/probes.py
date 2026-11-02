@@ -62,6 +62,8 @@ class MininetSampler:
         server_ip: str,
         runner: CommandRunner,
         bandwidth_reader: Callable[[], Optional[float]],
+        trace_id: Optional[str] = None,
+        configured_reader: Optional[Callable[[], tuple[Optional[float], Optional[float], Optional[float]]]] = None,
         probe_seconds: float = 1,
         command_timeout: float = 10,
     ):
@@ -69,13 +71,19 @@ class MininetSampler:
         self.server_ip = server_ip
         self.runner = runner
         self.bandwidth_reader = bandwidth_reader
+        self.trace_id = trace_id
+        self.configured_reader = configured_reader
         self.probe_seconds = probe_seconds
         self.command_timeout = command_timeout
 
     def __call__(self, timestamp: datetime) -> Measurement:
         configured = None
+        configured_delay = configured_loss = None
         try:
-            configured = self.bandwidth_reader()
+            if self.configured_reader is not None:
+                configured, configured_delay, configured_loss = self.configured_reader()
+            else:
+                configured = self.bandwidth_reader()
         except (OSError, RuntimeError, json.JSONDecodeError, KeyError, TypeError, ValueError):
             pass
         throughput = duration = rtt = loss = None
@@ -103,7 +111,10 @@ class MininetSampler:
         return Measurement(
             experiment_id=self.experiment_id,
             timestamp=timestamp,
+            trace_id=self.trace_id,
             configured_bandwidth_mbps=configured,
+            configured_delay_ms=configured_delay,
+            configured_packet_loss_percent=configured_loss,
             throughput_mbps=throughput,
             rtt_ms=rtt,
             packet_loss_percent=loss,

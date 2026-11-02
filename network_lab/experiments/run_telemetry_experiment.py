@@ -7,15 +7,9 @@ Run as root on a host with Mininet, iperf3, ping, and ``tc`` installed:
 import argparse
 import json
 import re
-import time
 import uuid
 from pathlib import Path
 from typing import Optional, Sequence
-
-from network_lab.telemetry.collector import MeasurementCollector
-from network_lab.telemetry.probes import MininetSampler
-from network_lab.telemetry.trace_writer import CsvTraceWriter
-
 
 TRACE_DIR = Path(__file__).resolve().parents[2] / "experiments" / "network_traces"
 
@@ -53,52 +47,22 @@ def run(
     phase_seconds: float = 6,
     interval_seconds: float = 2,
 ) -> Path:
-    from mininet.link import TCLink
-    from mininet.net import Mininet
-    from mininet.node import OVSSwitch
-    from network_lab.topologies.dynamic_topology import StreamTopology
+    from network_lab.traces.models import NetworkCondition, NetworkTrace
+    from network_lab.experiments.run import _replay_in_mininet
 
-    experiment_id = f"dynamic-{uuid.uuid4().hex[:8]}"
-    output = TRACE_DIR / f"{experiment_id}.csv"
-    net = Mininet(
-        topo=StreamTopology(),
-        link=TCLink,
-        switch=OVSSwitch,
-        controller=None,
-        autoSetMacs=True,
+    conditions = tuple(
+        NetworkCondition(index * phase_seconds, bandwidth)
+        for index, bandwidth in enumerate(bandwidths)
     )
-    net.start()
-    server, client = net.get("h1"), net.get("h2")
-    server_process = server.popen(["iperf3", "-s"], stdout=-1, stderr=-1, text=True)
-    server_runner = MininetHostRunner(server)
-    client_runner = MininetHostRunner(client)
-
-    def configured_bandwidth() -> Optional[float]:
-        return read_tc_bandwidth(server_runner, "h1-eth0")
-
-    sampler = MininetSampler(
-        experiment_id,
-        "10.0.0.1",
-        client_runner,
-        configured_bandwidth,
-        probe_seconds=min(1, interval_seconds),
+    trace = NetworkTrace(
+        f"dynamic-{uuid.uuid4().hex[:8]}",
+        "manual_phases",
+        None,
+        len(bandwidths) * phase_seconds,
+        interval_seconds,
+        conditions,
     )
-    collector = MeasurementCollector(
-        experiment_id, interval_seconds, sampler, CsvTraceWriter(output)
-    )
-    try:
-        collector.start()
-        for bandwidth in bandwidths:
-            server.intf("h1-eth0").config(bw=bandwidth, delay="5ms")
-            time.sleep(phase_seconds)
-    finally:
-        collector.stop(timeout=max(10, interval_seconds + 5))
-        server_process.terminate()
-        server_process.wait(timeout=5)
-        net.stop()
-    if collector.errors:
-        print(f"Telemetry probe errors: {len(collector.errors)} (missing values retained)")
-    return output
+    return _replay_in_mininet(trace, interval_seconds)
 
 
 def main() -> None:

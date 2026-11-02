@@ -1,0 +1,45 @@
+{
+  "trace_id": "recovery_42",
+  "profile": "recovery",
+  "seed": 42,
+  "duration_seconds": 6,
+  "interval_seconds": 1,
+  "conditions": [
+    {
+      "timestamp_seconds": 0,
+      "bandwidth_mbps": 10.0,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 1,
+      "bandwidth_mbps": 10.0,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 2,
+      "bandwidth_mbps": 2.5333333333333337,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 3,
+      "bandwidth_mbps": 5.200000000000001,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 4,
+      "bandwidth_mbps": 7.866666666666667,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    },
+    {
+      "timestamp_seconds": 5,
+      "bandwidth_mbps": 10.0,
+      "delay_ms": 5.0,
+      "packet_loss_percent": 0.0
+    }
+  ]
+}

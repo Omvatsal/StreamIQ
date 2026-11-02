@@ -9,11 +9,14 @@ from .metrics import Measurement
 
 TRACE_FIELDS = (
     "experiment_id",
+    "trace_id",
     "timestamp",
     "configured_bandwidth_mbps",
+    "configured_delay_ms",
+    "configured_packet_loss_percent",
     "throughput_mbps",
     "rtt_ms",
-    "packet_loss_percent",
+    "observed_packet_loss_percent",
     "download_duration_seconds",
 )
 
