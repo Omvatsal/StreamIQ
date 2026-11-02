@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Models and datasets
+*.pt
+*.pth
+*.onnx
+*.mp4
+*.m4v
+*.mkv
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Frontend
+node_modules/
+dist/
+.next/
+
+# IDE
+.vscode/
+.idea/
+
+# Experiment outputs
+experiments/results/*
+!experiments/results/.gitkeep
+
