@@ -13,6 +13,8 @@ venv/
 *.mp4
 *.m4v
 *.mkv
+*.m4s
+backend/assets/dash/
 
 # Environment variables
 .env
