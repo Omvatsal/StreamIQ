@@ -1,0 +1,1 @@
+"""StreamIQ backend application."""

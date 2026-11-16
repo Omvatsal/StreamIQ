@@ -114,6 +114,16 @@ def run(output: Path, episodes: int, seeds: tuple[int, ...]) -> None:
                 "paired_dqn_qoe": paired,
             }
             history.to_csv(output / "training" / str(seed) / f"{ablation.name}.csv")
+            validation_path = output / "training" / str(seed) / ablation.name / "validation.csv"
+            validation_path.parent.mkdir(parents=True, exist_ok=True)
+            validation_path.write_text(
+                "validation_index,score\n"
+                + "".join(
+                    f"{(index + 1) * config.validation_every},{score}\n"
+                    for index, score in enumerate(history.validation_scores)
+                ),
+                encoding="utf-8",
+            )
             plot_training(
                 history,
                 output / "plots" / "training" / str(seed) / f"{ablation.name}.png",

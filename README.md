@@ -94,10 +94,9 @@ The sample writes a trace, per-segment CSV metrics, and a four-panel plot under
 Mbps; a four-second segment therefore has size `bitrate * 4 / 8` MB.
 
 Each step downloads one segment by integrating available trace capacity across
-trace intervals. Packet loss reduces effective capacity; delay is retained in
-the network condition and available to adapters, but this simplified segment
-model does not add delay to transfer time. Playback consumes the current buffer
-while downloading, and any deficit is rebuffering. Reward is:
+trace intervals. Packet loss reduces effective capacity and configured
+one-way delay is added once per segment download. Playback consumes the
+current buffer while downloading, and any deficit is rebuffering. Reward is:
 
 `quality_weight * quality_index - rebuffer_penalty * rebuffer_seconds - switch_penalty * abs(index_delta)`.
 
@@ -110,8 +109,8 @@ Metrics can be exported with `EpisodeMetrics.to_csv()`, and plotted with
 [`backend/requirements.txt`](/home/om_vatsal/coding/projects/StreamIQ/backend/requirements.txt).
 
 ABR validation currently covers buffer stalls, trace bandwidth integration,
-reward switching magnitude, termination, reproducibility, CSV export, and
-sudden-drop behavior. The full test suite passed locally with 14 tests.
+delay, reward switching magnitude, termination, reproducibility, CSV export,
+and sudden-drop behavior. The full Python test suite currently passes 26 tests.
 Mininet integration remains outside this environment because Mininet is not
 installed here; the ABR environment itself is independent of that limitation.
 
@@ -172,3 +171,88 @@ can remove throughput history or previous bitrate without duplicating the
 environment. The available one-seed, 20-episode validation run is not enough
 to claim convergence or that DQN reduces oscillations while maintaining QoE;
 the research report explicitly treats those results as limited evidence.
+
+## Real video streaming prototype
+
+Milestone 7 adds FFmpeg/DASH processing services under
+[`backend/app/services/`](/home/om_vatsal/coding/projects/StreamIQ/backend/app/services)
+and a React/dash.js client under
+[`frontend/`](/home/om_vatsal/coding/projects/StreamIQ/frontend).
+
+Place authorized source videos in
+[`video_assets/originals/`](/home/om_vatsal/coding/projects/StreamIQ/video_assets/originals),
+then process one with:
+
+```bash
+python - <<'PY'
+from backend.app.services.video_processor import VideoProcessor
+VideoProcessor().process("video_assets/originals/example.mp4", "example")
+PY
+```
+
+The processor creates five aligned, four-second DASH video representations and
+an MPD under `video_assets/processed/example/`. It uses a fixed 24 FPS
+encoding grid and a 96-frame GOP so segment boundaries remain aligned.
+FFmpeg must be installed separately.
+
+Start the backend from the repository root:
+
+```bash
+uvicorn backend.app.main:app --reload
+```
+
+Available APIs include:
+
+- `GET /api/videos`
+- `GET /api/videos/{video_id}/manifest`
+- `POST /api/abr/decision`
+- `POST /api/playback/metrics`
+- `POST /api/sessions`
+- `POST /api/sessions/{session_id}/segments`
+- `GET /api/sessions/{session_id}`
+- `GET /api/sessions/{session_id}/export.csv`
+- `GET /health` and `GET /ready`
+
+The controller loads
+`experiments/results/dqn_sample/model_final.pt` lazily and sends the exact
+nine-value state used by the trained ABR environment: buffer, five throughput
+values, previous bitrate, previous download duration, and remaining segments.
+Inference is greedy. Missing checkpoints, invalid state, or inference errors
+fall back to 240p and are returned explicitly in the response.
+
+Start the frontend after installing dependencies:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The player supports DQN, dash.js default ABR, and manual fixed-bitrate modes.
+The browser collects buffer and throughput information and requests decisions
+before subsequent representation selections. Browser playback and frontend
+builds were not verified in this environment because npm resolved to a Windows
+runtime that cannot install packages from the WSL UNC path. The Python
+services and an actual FFmpeg DASH processing smoke test were executed.
+
+## Deployment
+
+Copy `.env.example` to `.env` for local configuration. The backend emits
+structured JSON logs, loads the configured checkpoint once, and exposes
+`/ready` separately from the liveness endpoint. Playback sessions are persisted
+as JSON and exportable as CSV under the configured experiment directory.
+
+Run the containerized prototype with:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+See [`docs/DEPLOYMENT.md`](/home/om_vatsal/coding/projects/StreamIQ/docs/DEPLOYMENT.md)
+for volumes, model provisioning, environment variables, health checks, and
+limitations. Mininet/Open vSwitch remains a separate optional network
+experimentation environment.
+
+For step-by-step installation and run commands, see
+[`docs/RUNNING.md`](/home/om_vatsal/coding/projects/StreamIQ/docs/RUNNING.md).

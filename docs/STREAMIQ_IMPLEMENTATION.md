@@ -448,8 +448,9 @@ The local validation used the CPU build `torch==2.9.0+cpu`.
    executed here.
 2. Mininet, Open vSwitch, and Linux `tc` behavior can differ on WSL2 and must
    be validated on the target kernel.
-3. The ABR network adapter models trace capacity and packet loss but does not
-   currently add configured delay to transfer time.
+3. The ABR network adapter adds configured one-way delay once per segment and
+   models packet loss as an effective-capacity approximation, not packet-level
+   retransmission.
 4. The telemetry `iperf3` probe is active traffic and may affect the measured
    network.
 5. Ping parsing uses its human-readable summary because a portable ping JSON
@@ -458,14 +459,13 @@ The local validation used the CPU build `torch==2.9.0+cpu`.
    not a tuned training study.
 7. Baselines and DQN use the current simplified ABR reward and environment;
    no claim is made that the reward is calibrated for real QoE.
-8. No DQN training, video player, frontend, or deployment integration is
-   included beyond the reusable interfaces documented here.
+8. Browser playback and Docker deployment were not verified in the development
+   runtime; see the deployment guide for the exact limitations.
 
 ## 13. Future extension points
 
 - Add a real video manifest and segment catalog.
-- Add delay-aware download timing and more detailed packet-loss/retransmission
-  modeling.
+- Add more detailed packet-loss/retransmission modeling.
 - Add separate train/validation/test trace sets.
 - Add longer DQN runs and hyperparameter studies.
 - Add Double DQN, prioritized replay, or other controlled algorithm variants.
@@ -502,3 +502,61 @@ differences, standard deviations, confidence intervals, Cohen's `d_z`, and
 paired t-test p-values when SciPy is available.
 [`ablations.py`](../rl_engine/training/ablations.py) defines retrained reward
 and state ablations.
+
+## 15. Real video streaming prototype
+
+Milestone 7 adds:
+
+- [`video_processor.py`](../backend/app/services/video_processor.py)
+  - FFmpeg representation generation.
+  - 240p, 360p, 480p, 720p, and 1080p outputs.
+  - Four-second DASH segments.
+  - 24 FPS / 96-frame GOP alignment.
+- [`streaming_service.py`](../backend/app/services/streaming_service.py)
+  - processed-video discovery
+  - safe manifest lookup
+- [`dqn_controller.py`](../backend/app/services/dqn_controller.py)
+  - lazy checkpoint loading
+  - greedy inference
+  - exact nine-value trained state contract
+  - explicit 240p fallback
+- [`playback_metrics.py`](../backend/app/services/playback_metrics.py)
+  - segment-level browser metrics and summaries
+- [`streaming.py`](../backend/app/api/streaming.py)
+  - video listing
+  - manifest response
+  - ABR decision endpoint
+  - playback metrics endpoint
+- [`frontend/`](../frontend/)
+  - React and TypeScript player
+  - dash.js playback
+  - DQN, dash.js, and manual modes
+
+Process an authorized input video:
+
+```bash
+python - <<'PY'
+from backend.app.services.video_processor import VideoProcessor
+VideoProcessor().process("video_assets/originals/example.mp4", "example")
+PY
+```
+
+Run the backend:
+
+```bash
+uvicorn backend.app.main:app --reload
+```
+
+Run the frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The Python integration tests passed and an actual FFmpeg DASH smoke test
+created an MPD plus initialization/media segments from a generated local test
+clip. Browser playback and TypeScript compilation remain unverified because
+the available npm command invokes Windows Node against the WSL UNC workspace.
+No claim is made that end-to-end browser playback has been successfully tested.

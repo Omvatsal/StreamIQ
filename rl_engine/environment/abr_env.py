@@ -1,6 +1,6 @@
 """Gymnasium-compatible adaptive bitrate environment."""
 
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 import gymnasium as gym
@@ -29,6 +29,7 @@ class ABREnvironment(gym.Env):
         reward_config: Optional[RewardConfig] = None,
         include_previous_bitrate: bool = True,
         network_packet_loss_retries: bool = False,
+        state_representation: Literal["full", "without_buffer", "buffer_change"] = "full",
     ):
         super().__init__()
         if throughput_history_length < 0:
@@ -38,11 +39,17 @@ class ABREnvironment(gym.Env):
         self.buffer_capacity_seconds = buffer_capacity_seconds
         self.history_length = throughput_history_length
         self.include_previous_bitrate = include_previous_bitrate
+        if state_representation not in {"full", "without_buffer", "buffer_change"}:
+            raise ValueError(f"unsupported state representation: {state_representation}")
+        self.state_representation = state_representation
         self.reward_config = reward_config or RewardConfig()
         self.action_space = spaces.Discrete(5)
         state_size = 1 + throughput_history_length + int(include_previous_bitrate) + 2
+        low = np.zeros(state_size, dtype=np.float32)
+        if state_representation == "buffer_change":
+            low[0] = -buffer_capacity_seconds
         self.observation_space = spaces.Box(
-            low=np.zeros(state_size, dtype=np.float32),
+            low=low,
             high=np.array(
                 [buffer_capacity_seconds]
                 + [np.finfo(np.float32).max] * throughput_history_length
@@ -61,12 +68,22 @@ class ABREnvironment(gym.Env):
         self._segment_index = 0
         self._previous_quality: Optional[int] = None
         self._previous_download = 0.0
+        self._previous_buffer_occupancy = 0.0
+        self._buffer_change = 0.0
         self._throughputs = [0.0] * throughput_history_length
 
     def _observation(self) -> np.ndarray:
         return np.asarray(
             [
-                self.buffer.occupancy_seconds,
+                (
+                    self.buffer.occupancy_seconds
+                    if self.state_representation == "full"
+                    else (
+                        0.0
+                        if self.state_representation == "without_buffer"
+                        else self._buffer_change
+                    )
+                ),
                 *self._throughputs,
                 *(
                     [0.0 if self._previous_quality is None
@@ -90,6 +107,8 @@ class ABREnvironment(gym.Env):
         self._segment_index = 0
         self._previous_quality = None
         self._previous_download = 0.0
+        self._previous_buffer_occupancy = 0.0
+        self._buffer_change = 0.0
         self._throughputs = [0.0] * self.history_length
         return self._observation(), {"trace_id": self.trace.trace_id}
 
@@ -105,6 +124,9 @@ class ABREnvironment(gym.Env):
         rebuffer = self.buffer.download_and_play(
             result.duration_seconds, self.video.segment_duration_seconds
         )
+        current_buffer_occupancy = self.buffer.occupancy_seconds
+        self._buffer_change = current_buffer_occupancy - self._previous_buffer_occupancy
+        self._previous_buffer_occupancy = current_buffer_occupancy
         previous_bitrate = (
             None if self._previous_quality is None
             else self.video.bitrates_mbps[self._previous_quality]
@@ -134,7 +156,7 @@ class ABREnvironment(gym.Env):
                 self.video.bitrates_mbps[quality],
                 result.throughput_mbps,
                 result.duration_seconds,
-                self.buffer.occupancy_seconds,
+                current_buffer_occupancy,
                 rebuffer,
                 reward,
                 result.condition.bandwidth_mbps,

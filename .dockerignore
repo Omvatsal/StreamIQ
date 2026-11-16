@@ -1,0 +1,16 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+frontend/node_modules
+frontend/dist
+video_assets/originals
+experiments/results
+*.mp4
+*.mkv
+*.m4v
+*.pt
+*.pth
+.env

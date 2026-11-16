@@ -1,54 +1,37 @@
-"""StreamIQ FastAPI application entrypoint."""
+from pathlib import Path
 
-from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.app.api import api_router
-from backend.app.core.config import settings, PROJECT_ROOT
-from backend.app.services.rl_service import rl_service
+from backend.app.api.streaming import router as streaming_router
+from backend.app.api.sessions import router as sessions_router
+from backend.app.config import get_settings
+from backend.app.logging_config import configure_logging
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: Ensure the trained DQN model is warm and loaded into memory
-    _ = rl_service.predict(
-        buffer_occupancy_seconds=10.0,
-        throughput_history=[2.5, 3.0, 2.8, 3.2, 3.5],
-        previous_bitrate_mbps=2.5,
-        previous_download_duration_seconds=2.0,
-        remaining_segments=10,
-    )
-    yield
-
+settings = get_settings()
+configure_logging(settings.log_level)
 
 app = FastAPI(
-    title=settings.app_name,
-    description="RL-Driven Adaptive Video Streaming Platform API",
-    version=settings.app_version,
-    lifespan=lifespan,
+    title="StreamIQ API",
+    description="RL-driven adaptive video streaming platform",
+    version="0.1.0"
 )
-
-# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(streaming_router)
+app.include_router(sessions_router)
 
-# Include main API router
-app.include_router(api_router)
-
-# Mount frontend production build if available
-frontend_dist = PROJECT_ROOT / "frontend" / "dist"
-if frontend_dist.exists():
-    assets_dir = frontend_dist / "assets"
-    if assets_dir.exists():
-        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
-    app.mount("/ui", StaticFiles(directory=str(frontend_dist), html=True), name="ui")
+processed_root = settings.processed_video_root
+if not processed_root.is_absolute():
+    processed_root = Path(__file__).resolve().parents[2] / processed_root
+processed_root.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=processed_root), name="media")
 
 
 @app.get("/")
@@ -56,15 +39,24 @@ async def root():
     return {
         "project": "StreamIQ",
         "status": "running",
-        "version": settings.app_version,
-        "ui": "/ui/",
-        "docs": "/docs",
+        "version": "0.1.0"
     }
 
 
 @app.get("/health")
 async def health():
     return {
-        "status": "healthy",
-        "model_loaded": rl_service.agent is not None,
+        "status": "healthy"
+    }
+
+
+@app.get("/ready")
+async def ready():
+    from backend.app.api.streaming import controller
+
+    checkpoint_ready = controller.readiness()
+    return {
+        "status": "ready" if checkpoint_ready else "degraded",
+        "model_loaded": checkpoint_ready,
+        "video_root": str(processed_root),
     }

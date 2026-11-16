@@ -33,4 +33,9 @@ dist/
 # Experiment outputs
 experiments/results/*
 !experiments/results/.gitkeep
-
+!experiments/results/research_multiseed/
+experiments/results/research_multiseed/*
+!experiments/results/research_multiseed/plots/
+!experiments/results/research_multiseed/plots/**
+!experiments/results/research_multiseed/reports/
+!experiments/results/research_multiseed/reports/**
